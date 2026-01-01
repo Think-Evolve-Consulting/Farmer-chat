@@ -86,3 +86,39 @@ class TestFarmerChatClient:
         assert SYSTEM_PROMPT is not None
         assert "farmer" in SYSTEM_PROMPT.lower()
         assert "context" in SYSTEM_PROMPT.lower()
+
+    @pytest.mark.integration
+    def test_chat_with_logger(self, sample_transcript_dir, tmp_path, conversation_logger):
+        """Test that chat logs interactions when logger is provided."""
+        with patch("src.chat_client.Anthropic") as mock_anthropic:
+            # Setup mock response
+            mock_response = MagicMock()
+            mock_response.content = [MagicMock(text="Test response about wheat")]
+            mock_anthropic.return_value.messages.create.return_value = mock_response
+
+            # Create client with logger
+            client = FarmerChatClient(api_key="test_key", logger=conversation_logger)
+            client.retriever.indexer.index_path = tmp_path / "test.index"
+            client.retriever.build_index(str(sample_transcript_dir))
+
+            # Send a chat message
+            response = client.chat("What about wheat?")
+
+            # Verify chat worked
+            assert response == "Test response about wheat"
+            assert len(client.conversation_history) == 2
+
+            # Verify logger recorded the interaction
+            assert conversation_logger.interaction_count == 1
+
+            # Close logger and verify log file exists
+            conversation_logger.close()
+            log_files = list(conversation_logger.log_dir.glob("session_*.log"))
+            assert len(log_files) == 1
+
+            # Verify log file content
+            log_content = log_files[0].read_text(encoding='utf-8')
+            assert "USER QUERY:" in log_content
+            assert "What about wheat?" in log_content
+            assert "ASSISTANT RESPONSE:" in log_content
+            assert "Test response about wheat" in log_content
