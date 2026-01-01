@@ -29,7 +29,11 @@ class Config:
     
     # Claude model
     claude_model: str = "claude-sonnet-4-20250514"
-    
+
+    # Logging settings
+    conversation_logging_enabled: bool = os.getenv("CONVERSATION_LOGGING_ENABLED", "true").lower() == "true"
+    conversation_log_dir: str = os.getenv("CONVERSATION_LOG_DIR", "data/logs/conversations")
+
     def validate(self) -> None:
         """Validate required configuration."""
         if not self.anthropic_api_key:

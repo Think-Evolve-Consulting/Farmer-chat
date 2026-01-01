@@ -9,6 +9,7 @@ from src.chunker import TranscriptChunker, Chunk
 from src.embedder import EmbeddingGenerator
 from src.indexer import FAISSIndexer
 from src.retriever import ContextRetriever
+from src.conversation_logger import ConversationLogger
 
 
 @pytest.fixture
@@ -91,3 +92,19 @@ def sample_chunks():
             metadata={"topic": "pest_control"}
         ),
     ]
+
+
+@pytest.fixture
+def tmp_log_dir(tmp_path):
+    """Temporary directory for log files."""
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    return log_dir
+
+
+@pytest.fixture
+def conversation_logger(tmp_log_dir):
+    """ConversationLogger with temporary directory."""
+    logger = ConversationLogger(log_dir=str(tmp_log_dir))
+    yield logger
+    logger.close()

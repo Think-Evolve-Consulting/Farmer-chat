@@ -3,6 +3,7 @@ from anthropic import Anthropic
 
 from .config import config
 from .retriever import ContextRetriever
+from .conversation_logger import ConversationLogger
 
 
 SYSTEM_PROMPT = """You are an AI assistant helping farmers with their questions.
@@ -29,18 +30,21 @@ class FarmerChatClient:
     def __init__(
         self,
         retriever: ContextRetriever = None,
-        api_key: str = None
+        api_key: str = None,
+        logger: ConversationLogger = None
     ):
         """
         Initialize the chat client.
-        
+
         Args:
             retriever: Context retriever instance
             api_key: Anthropic API key
+            logger: Conversation logger instance
         """
         self.retriever = retriever or ContextRetriever()
         self.client = Anthropic(api_key=api_key or config.anthropic_api_key)
         self.conversation_history: list[dict] = []
+        self.logger = logger
     
     def clear_history(self) -> None:
         """Clear the conversation history."""
@@ -49,20 +53,21 @@ class FarmerChatClient:
     def chat(self, user_message: str, include_context: bool = True) -> str:
         """
         Send a message and get a response.
-        
+
         Args:
             user_message: The user's message
             include_context: Whether to retrieve and include context
-            
+
         Returns:
             Claude's response text
         """
         # Retrieve relevant context
         context = ""
+        results = []
         if include_context:
             results = self.retriever.retrieve(user_message)
             context = self.retriever.format_context(results)
-        
+
         # Build the message with context
         if context and context != "No relevant context found.":
             enhanced_message = (
@@ -71,13 +76,13 @@ class FarmerChatClient:
             )
         else:
             enhanced_message = f"User Question: {user_message}"
-        
+
         # Add to conversation history
         self.conversation_history.append({
             "role": "user",
             "content": enhanced_message
         })
-        
+
         # Call Claude API
         response = self.client.messages.create(
             model=config.claude_model,
@@ -85,16 +90,24 @@ class FarmerChatClient:
             system=SYSTEM_PROMPT,
             messages=self.conversation_history
         )
-        
+
         # Extract response text
         assistant_message = response.content[0].text
-        
+
         # Add response to history
         self.conversation_history.append({
             "role": "assistant",
             "content": assistant_message
         })
-        
+
+        # Log the interaction
+        if self.logger:
+            self.logger.log_interaction(
+                query=user_message,
+                response=assistant_message,
+                context_results=results
+            )
+
         return assistant_message
     
     def get_context_only(self, query: str) -> list[dict]:

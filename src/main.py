@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .chat_client import FarmerChatClient
 from .retriever import ContextRetriever
+from .conversation_logger import ConversationLogger
 from .config import config
 
 
@@ -25,47 +26,57 @@ def interactive_chat() -> None:
     print("=" * 50)
     print("Type 'quit' to exit, 'clear' to reset conversation")
     print("=" * 50)
-    
+
     # Validate config
     config.validate()
-    
-    # Initialize client
-    client = FarmerChatClient()
-    
+
+    # Initialize logger
+    logger = None
+    if config.conversation_logging_enabled:
+        logger = ConversationLogger(log_dir=config.conversation_log_dir)
+
+    # Initialize client with logger
+    client = FarmerChatClient(logger=logger)
+
     # Load index
     if not client.retriever.load_index():
         print("Warning: No index found. Run with --build first.")
         print("Continuing without context retrieval...")
     else:
         print(f"Loaded index with {client.retriever.indexer.total_chunks} chunks")
-    
+
     print()
-    
-    while True:
-        try:
-            user_input = input("You: ").strip()
-            
-            if not user_input:
-                continue
-            
-            if user_input.lower() == "quit":
-                print("Goodbye!")
+
+    try:
+        while True:
+            try:
+                user_input = input("You: ").strip()
+
+                if not user_input:
+                    continue
+
+                if user_input.lower() == "quit":
+                    print("Goodbye!")
+                    break
+
+                if user_input.lower() == "clear":
+                    client.clear_history()
+                    print("Conversation cleared.")
+                    continue
+
+                # Get response
+                response = client.chat(user_input)
+                print(f"\nAssistant: {response}\n")
+
+            except KeyboardInterrupt:
+                print("\nGoodbye!")
                 break
-            
-            if user_input.lower() == "clear":
-                client.clear_history()
-                print("Conversation cleared.")
-                continue
-            
-            # Get response
-            response = client.chat(user_input)
-            print(f"\nAssistant: {response}\n")
-            
-        except KeyboardInterrupt:
-            print("\nGoodbye!")
-            break
-        except Exception as e:
-            print(f"Error: {e}")
+            except Exception as e:
+                print(f"Error: {e}")
+    finally:
+        # Close logger before exit
+        if logger:
+            logger.close()
 
 
 def main():

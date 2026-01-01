@@ -6,6 +6,7 @@ from typing import Optional
 
 from .chat_client import FarmerChatClient
 from .retriever import ContextRetriever
+from .conversation_logger import ConversationLogger
 from .config import config
 
 
@@ -44,12 +45,13 @@ app.add_middleware(
 
 # Global chat client instance (maintains conversation history)
 chat_client: Optional[FarmerChatClient] = None
+conversation_logger: Optional[ConversationLogger] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize the chat client on startup."""
-    global chat_client
+    global chat_client, conversation_logger
 
     # Validate config
     try:
@@ -57,14 +59,27 @@ async def startup_event():
     except ValueError as e:
         print(f"Warning: {e}")
 
-    # Initialize client
-    chat_client = FarmerChatClient()
+    # Initialize logger
+    if config.conversation_logging_enabled:
+        conversation_logger = ConversationLogger(log_dir=config.conversation_log_dir)
+
+    # Initialize client with logger
+    chat_client = FarmerChatClient(logger=conversation_logger)
 
     # Load index
     if not chat_client.retriever.load_index():
         print("Warning: No index found. Context retrieval will be disabled.")
     else:
         print(f"Loaded index with {chat_client.retriever.indexer.total_chunks} chunks")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    global conversation_logger
+
+    if conversation_logger:
+        conversation_logger.close()
 
 
 @app.get("/", response_model=StatusResponse)
