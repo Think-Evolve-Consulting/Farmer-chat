@@ -38,32 +38,41 @@ class ContextRetriever:
     def build_index(self, transcript_directory: str) -> int:
         """
         Build the FAISS index from JSONL transcripts.
-        
+
         Args:
             transcript_directory: Path to directory containing JSONL files
-            
+
         Returns:
             Number of chunks indexed
         """
         directory = Path(transcript_directory)
-        
+
         # Collect all chunks
+        print(f"\n=== STEP 1: Chunking Transcripts ===")
         chunks = list(self.chunker.process_directory(directory))
-        
+
         if not chunks:
+            print("No chunks found!")
             return 0
-        
+
+        print(f"\nTotal chunks collected: {len(chunks):,}")
+
         # Generate embeddings
+        print(f"\n=== STEP 2: Generating Embeddings ===")
         texts = [chunk.text for chunk in chunks]
         embeddings = self.embedder.embed_texts(texts)
-        
+
         # Create and populate index
+        print(f"\n=== STEP 3: Building FAISS Index ===")
         self.indexer.create_index()
         self.indexer.add_chunks(chunks, embeddings)
-        
+        print(f"Added {len(chunks):,} chunks to FAISS index")
+
         # Save index
+        print(f"\n=== STEP 4: Saving Index ===")
         self.indexer.save()
-        
+        print(f"Index saved to: {self.indexer.index_path}")
+
         return len(chunks)
     
     def load_index(self) -> bool:
