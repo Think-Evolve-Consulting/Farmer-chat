@@ -58,6 +58,9 @@ cover/
 *.index
 data/index/*.json
 
+# Claude Code
+.claude/
+
 # Translations
 *.mo
 *.pot
