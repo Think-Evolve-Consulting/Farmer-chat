@@ -54,6 +54,10 @@ cover/
 # data files
 *.jsonl
 
+# FAISS index files
+*.index
+data/index/*.json
+
 # Translations
 *.mo
 *.pot
