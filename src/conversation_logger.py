@@ -136,12 +136,41 @@ Model: claude-sonnet-4-20250514
             text = chunk.get('text', '')
             metadata = chunk.get('metadata', {})
             similarity_score = chunk.get('similarity_score', 0.0)
-            source = metadata.get('file_name', 'Unknown')
 
-            # Format chunk entry
+            # Get source file (try both locations)
+            source = chunk.get('source_file', metadata.get('file_name', 'Unknown'))
+            chunk_index = chunk.get('chunk_index', 'Unknown')
+
+            # Format chunk header with more debug info
             context += f"--- Chunk {i} (Relevance: {similarity_score:.2f}) ---\n"
             context += f"Source: {source}\n"
-            context += f"{text}\n\n"
+            context += f"Chunk Index: {chunk_index}\n"
+
+            # Add metadata debug info
+            if metadata:
+                context += f"Metadata: "
+                meta_items = []
+                for key, value in metadata.items():
+                    if key not in ['file_name']:  # Skip redundant fields
+                        # Truncate long values
+                        value_str = str(value)
+                        if len(value_str) > 50:
+                            value_str = value_str[:47] + "..."
+                        meta_items.append(f"{key}={value_str}")
+                context += ", ".join(meta_items) + "\n"
+
+            # Format text content
+            if text:
+                # Truncate very long text for readability
+                if len(text) > 800:
+                    text_display = text[:800] + "\n... [truncated, full length: {} chars]".format(len(text))
+                else:
+                    text_display = text
+                context += f"Text:\n{text_display}\n"
+            else:
+                context += "Text: [EMPTY]\n"
+
+            context += "\n"
 
         return context
 

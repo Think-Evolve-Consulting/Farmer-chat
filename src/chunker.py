@@ -59,28 +59,64 @@ class TranscriptChunker:
     def format_conversation(self, messages: list[dict]) -> str:
         """
         Format messages into a conversation string.
-        
-        Expected JSONL format:
-        {"speaker": "Farmer John", "message": "How's the wheat crop?", "timestamp": "..."}
-        
+
+        Supports two JSONL formats:
+        1. Chat format: {"speaker": "Farmer John", "message": "How's the wheat crop?", "timestamp": "..."}
+        2. KCC format: {"QueryText": "...", "KccAns": "...", "Crop": "...", "QueryType": "...", ...}
+
         Args:
             messages: List of message dictionaries
-            
+
         Returns:
             Formatted conversation string
         """
         formatted_lines = []
         for msg in messages:
-            speaker = msg.get("speaker", "Unknown")
-            message = msg.get("message", "")
-            timestamp = msg.get("timestamp", "")
-            
-            if timestamp:
-                formatted_lines.append(f"[{timestamp}] {speaker}: {message}")
+            # Check if this is KCC data format (has QueryText/KccAns)
+            if "QueryText" in msg or "KccAns" in msg:
+                # Format KCC data with relevant fields
+                parts = []
+
+                # Add timestamp if available
+                if "CreatedOn" in msg:
+                    parts.append(f"[{msg['CreatedOn']}]")
+
+                # Add location info if available
+                location_parts = []
+                for field in ["StateName", "DistrictName", "BlockName"]:
+                    if field in msg and msg[field]:
+                        location_parts.append(msg[field])
+                if location_parts:
+                    parts.append(f"Location: {', '.join(location_parts)}")
+
+                # Add crop/sector info
+                if "Crop" in msg and msg["Crop"]:
+                    parts.append(f"Crop: {msg['Crop']}")
+                if "QueryType" in msg and msg["QueryType"]:
+                    parts.append(f"QueryType: {msg['QueryType'].strip()}")
+
+                # Add the Q&A
+                if "QueryText" in msg and msg["QueryText"]:
+                    query_text = msg["QueryText"].strip()
+                    parts.append(f"Query: {query_text}")
+
+                if "KccAns" in msg and msg["KccAns"]:
+                    answer_text = msg["KccAns"].strip()
+                    parts.append(f"Answer: {answer_text}")
+
+                formatted_lines.append("\n".join(parts))
             else:
-                formatted_lines.append(f"{speaker}: {message}")
-        
-        return "\n".join(formatted_lines)
+                # Original chat format
+                speaker = msg.get("speaker", "Unknown")
+                message = msg.get("message", "")
+                timestamp = msg.get("timestamp", "")
+
+                if timestamp:
+                    formatted_lines.append(f"[{timestamp}] {speaker}: {message}")
+                else:
+                    formatted_lines.append(f"{speaker}: {message}")
+
+        return "\n\n".join(formatted_lines)
     
     def chunk_text(self, text: str, source_file: str, base_metadata: dict = None) -> list[Chunk]:
         """
@@ -139,27 +175,72 @@ class TranscriptChunker:
         
         return chunks
     
-    def process_directory(self, directory: Path) -> Generator[Chunk, None, None]:
+    def process_directory(self, directory: Path, batch_size: int = 1000) -> Generator[Chunk, None, None]:
         """
         Process all JSONL files in a directory.
-        
+
         Args:
             directory: Path to directory containing JSONL files
-            
+            batch_size: Number of messages to process at once (for memory efficiency)
+
         Yields:
             Chunk objects from all files
         """
         for jsonl_file in directory.glob("*.jsonl"):
-            messages = self.parse_jsonl(jsonl_file)
-            conversation_text = self.format_conversation(messages)
-            
-            metadata = {
-                "file_name": jsonl_file.name,
-                "message_count": len(messages)
-            }
-            
-            yield from self.chunk_text(
-                text=conversation_text,
-                source_file=str(jsonl_file),
-                base_metadata=metadata
-            )
+            print(f"Processing {jsonl_file.name}...")
+            total_messages = 0
+            batch = []
+
+            with open(jsonl_file, "r", encoding="utf-8") as f:
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if line:
+                        try:
+                            batch.append(json.loads(line))
+                            total_messages += 1
+
+                            # Process batch when it reaches batch_size
+                            if len(batch) >= batch_size:
+                                conversation_text = self.format_conversation(batch)
+
+                                metadata = {
+                                    "file_name": jsonl_file.name,
+                                    "message_count": len(batch),
+                                    "batch_start_line": line_num - len(batch) + 1,
+                                    "batch_end_line": line_num
+                                }
+
+                                yield from self.chunk_text(
+                                    text=conversation_text,
+                                    source_file=str(jsonl_file),
+                                    base_metadata=metadata
+                                )
+
+                                batch = []  # Clear batch
+
+                                # Progress indicator
+                                if total_messages % 10000 == 0:
+                                    print(f"  Processed {total_messages:,} messages from {jsonl_file.name}")
+
+                        except json.JSONDecodeError as e:
+                            print(f"  Warning: Skipping invalid JSON at line {line_num}: {e}")
+                            continue
+
+                # Process remaining messages in the last batch
+                if batch:
+                    conversation_text = self.format_conversation(batch)
+
+                    metadata = {
+                        "file_name": jsonl_file.name,
+                        "message_count": len(batch),
+                        "batch_start_line": total_messages - len(batch) + 1,
+                        "batch_end_line": total_messages
+                    }
+
+                    yield from self.chunk_text(
+                        text=conversation_text,
+                        source_file=str(jsonl_file),
+                        base_metadata=metadata
+                    )
+
+            print(f"  Completed {jsonl_file.name}: {total_messages:,} total messages")

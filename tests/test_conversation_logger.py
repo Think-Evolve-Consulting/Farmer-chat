@@ -49,7 +49,14 @@ def test_log_interaction_format(tmp_path):
     context_results = [
         {
             "text": "Wheat requires nitrogen-rich soil...",
-            "metadata": {"file_name": "kcc_data.jsonl"},
+            "source_file": "data/transcripts/kcc_data.jsonl",
+            "chunk_index": 42,
+            "metadata": {
+                "file_name": "kcc_data.jsonl",
+                "message_count": 100,
+                "start_char": 0,
+                "end_char": 500
+            },
             "similarity_score": 0.87
         }
     ]
@@ -66,7 +73,9 @@ def test_log_interaction_format(tmp_path):
     assert query in content
     assert "RETRIEVED CONTEXT (1 chunks):" in content
     assert "Chunk 1 (Relevance: 0.87)" in content
-    assert "Source: kcc_data.jsonl" in content
+    assert "Source: data/transcripts/kcc_data.jsonl" in content or "Source: data\\transcripts\\kcc_data.jsonl" in content
+    assert "Chunk Index: 42" in content
+    assert "Metadata:" in content
     assert "Wheat requires nitrogen-rich soil..." in content
     assert "ASSISTANT RESPONSE:" in content
     assert response in content
@@ -80,17 +89,23 @@ def test_context_chunk_formatting(tmp_path):
     context_results = [
         {
             "text": "Chunk 1 text",
-            "metadata": {"file_name": "file1.jsonl"},
+            "source_file": "file1.jsonl",
+            "chunk_index": 0,
+            "metadata": {"file_name": "file1.jsonl", "start_char": 0, "end_char": 100},
             "similarity_score": 0.92
         },
         {
             "text": "Chunk 2 text",
-            "metadata": {"file_name": "file2.jsonl"},
+            "source_file": "file2.jsonl",
+            "chunk_index": 5,
+            "metadata": {"file_name": "file2.jsonl", "start_char": 500, "end_char": 600},
             "similarity_score": 0.85
         },
         {
             "text": "Chunk 3 text",
-            "metadata": {"file_name": "file3.jsonl"},
+            "source_file": "file3.jsonl",
+            "chunk_index": 10,
+            "metadata": {"file_name": "file3.jsonl", "start_char": 1000, "end_char": 1100},
             "similarity_score": 0.78
         }
     ]
@@ -109,6 +124,7 @@ def test_context_chunk_formatting(tmp_path):
     assert "file1.jsonl" in content
     assert "file2.jsonl" in content
     assert "file3.jsonl" in content
+    assert "Chunk Index:" in content
 
 
 @pytest.mark.unit
