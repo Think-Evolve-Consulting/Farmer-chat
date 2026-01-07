@@ -116,14 +116,14 @@ export const ChatInterface: React.FC = () => {
       <div className="messages-container">
         {messages.length === 0 ? (
           <div className="welcome-message">
-            <h2>Welcome to Farmer Chat!</h2>
-            <p>Ask me anything about farming practices, crop management, or agricultural advice.</p>
+            <h2>फार्मर चैट में आपका स्वागत है!</h2>
+            <p>खेती-बाड़ी के तरीकों, फसल प्रबंधन या कृषि संबंधी सलाह के बारे में आप मुझसे कुछ भी पूछ सकते हैं।</p>
             <div className="example-questions">
               <p>Try asking:</p>
               <ul>
-                <li>"What is crop rotation?"</li>
-                <li>"How much sulphate should I use?"</li>
-                <li>"What are the best practices for pest management?"</li>
+                <li>"फसल चक्र क्या है?"</li>
+                <li>"मुझे कितना सल्फेट इस्तेमाल करना चाहिए?"</li>
+                <li>"कीट प्रबंधन के लिए सर्वोत्तम उपाय क्या हैं?"</li>
               </ul>
             </div>
           </div>

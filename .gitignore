@@ -55,7 +55,7 @@ cover/
 *.jsonl
 
 # FAISS index files
-*.index
+*.index*
 data/index/*.json
 
 # Claude Code

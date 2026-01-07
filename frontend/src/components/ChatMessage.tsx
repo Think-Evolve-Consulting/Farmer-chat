@@ -1,4 +1,7 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import type { ChatMessage as ChatMessageType } from '../types';
 
 interface ChatMessageProps {
@@ -19,8 +22,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           })}
         </span>
       </div>
-      <div className="message-content">
-        {message.content}
+      <div className="message-content markdown-content">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+        >
+          {message.content}
+        </ReactMarkdown>
       </div>
     </div>
   );

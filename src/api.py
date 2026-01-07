@@ -31,13 +31,18 @@ class StatusResponse(BaseModel):
 app = FastAPI(
     title="Farmer Chat API",
     description="REST API for farmer chat interface with RAG capabilities",
-    version="1.0.0"
+    version="1.0.0",
+    root_path="/api"  # Add /api prefix for all routes
 )
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://misa.thinkevolvelabs.com"  # Cloudflare tunnel
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
